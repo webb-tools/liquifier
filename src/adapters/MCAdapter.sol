@@ -2,18 +2,37 @@
 
 pragma solidity ^0.8.19;
 
-import { Adapter } from "core/adapters/Adapter.sol";
-import { IMCStaking } from "core/adapters/interfaces/IMCStaking.sol";
+import { Adapter } from "liquifier/src/adapters/Adapter.sol";
+import { IStaking } from "./interfaces/IStaking.sol";
 import { ERC20 } from "solmate/tokens/ERC20.sol";
 import { SafeTransferLib } from "solmate/utils/SafeTransferLib.sol";
-import { IERC165 } from "core/interfaces/IERC165.sol";
-
-IMCStaking constant MCStaking = IMCStaking(address(1));
-ERC20 constant MCToken = ERC20(address(2));
-
+import { IERC165 } from "liquifier/src/interfaces/IERC165.sol";
 
 contract MCAdapter is Adapter {
     using SafeTransferLib for ERC20;
+
+    IStaking public immutable MCStaking;
+    ERC20 public immutable MCToken;
+
+    struct Storage {
+        uint256 lastRebaseTimestamp;
+    }
+    
+    uint256 private constant STORAGE = uint256(keccak256("xyz.liquifier.mc.adapter.storage.location")) - 1;
+
+    constructor(address _staking, address _token) {
+        MCStaking = IStaking(_staking);
+        MCToken = ERC20(_token);
+    }
+
+    function _loadStorage() internal pure returns (Storage storage $) {
+        uint256 slot = STORAGE;
+
+        // solhint-disable-next-line no-inline-assembly
+        assembly {
+            $.slot := slot
+        }
+    }
 
     function previewDeposit(address /*_validator*/, uint256 _assets) external pure returns (uint256) {
         return _assets;
@@ -56,8 +75,7 @@ contract MCAdapter is Adapter {
     }
 
     function rebase(address /*validator*/, uint256/*currentStake*/) external returns (uint256) {
-        // MC staking has a strict rebase schedule based on time passed, so no arguments needed.
-        return MCStaking.rebase();
+        // MC staking has a strict rebase schedule based on time passed, so no arguments needed
     }
 
     function isValidator(address _validator) external view returns (bool) {
